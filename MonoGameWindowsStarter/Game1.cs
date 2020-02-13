@@ -1,6 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Audio;
 using System;
 
 namespace MonoGameWindowsStarter
@@ -21,17 +22,23 @@ namespace MonoGameWindowsStarter
         //Vector2 ballVelocity;
 
         //Paddle paddle;
+        Shield shield;
         Ufo ufo;
         Asteroid[] asteroids;
         bool timeFlag = false;
         bool timeFlagScore = false;
         double time;
-        int numberOfAsteroids = 3;
+        int numberOfAsteroids;
         int score;
 
         bool lost = false;
         KeyboardState oldKeyboardState;
         KeyboardState newKeyboardState;
+
+        //sound
+        
+        SoundEffect asteroidExplode;
+        SoundEffect playerHit;
 
         public Game1()
         {
@@ -39,8 +46,12 @@ namespace MonoGameWindowsStarter
             Content.RootDirectory = "Content";
             //paddle = new Paddle(this);
             ufo = new Ufo(this);
+            shield = new Shield(this);
+            numberOfAsteroids = 3;
             asteroids = new Asteroid[] { new Asteroid(this, random), new Asteroid(this, random), new Asteroid(this, random) };
             score = 0;
+            
+            
             
         }
 
@@ -75,6 +86,8 @@ namespace MonoGameWindowsStarter
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
 
+            asteroidExplode = Content.Load<SoundEffect>("AsteroidExplodeSound");
+            playerHit = Content.Load<SoundEffect>("PlayerHitSound");
             // TODO: use this.Content to load your game content here
             //ball = Content.Load<Texture2D>("ball");
             //paddle.LoadContent(Content);
@@ -87,7 +100,7 @@ namespace MonoGameWindowsStarter
             //load font
             gameOver = Content.Load<SpriteFont>("font");
             scoreFont = Content.Load<SpriteFont>("score");
-
+            shield.LoadContent(Content, ufo);
         }
 
         /// <summary>
@@ -110,17 +123,21 @@ namespace MonoGameWindowsStarter
 
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
+            if (newKeyboardState.IsKeyDown(Keys.Enter))
+                Restart();
 
             if (newKeyboardState.IsKeyDown(Keys.Escape))
                 Exit();
             if (lost == false)
             {
+                
                 //paddle.Update(gameTime);
                 ufo.Update(gameTime);
                 foreach (Asteroid a in asteroids)
                 {
                     a.Update(gameTime);
                 }
+                shield.Update(gameTime, ufo);
 
                 time = gameTime.TotalGameTime.TotalSeconds;
                 if ((int)time != 0 && timeFlag == false)
@@ -165,7 +182,24 @@ namespace MonoGameWindowsStarter
                 {
                     if (Collisions.CollidesWith(ufo.bounds, a.bounds))
                     {
-                        lost = true;
+                        if (shield.used == true)
+                        {
+                            if (!a.destroyed)
+                            {
+                                asteroidExplode.Play();
+                            }
+                            a.Destroy();
+                            
+                        }
+                        else if (!a.destroyed)
+                        {
+                            lost = true;
+                            playerHit.Play();
+                        }
+                        else
+                        {
+                            
+                        }
                     }
                 }
             }
@@ -193,6 +227,7 @@ namespace MonoGameWindowsStarter
             //paddle.Draw(spriteBatch);
             spriteBatch.Draw(background, new Rectangle( 0 , 0 , this.GraphicsDevice.Viewport.Width , this.GraphicsDevice.Viewport.Height), Color.White);
             ufo.Draw(spriteBatch);
+            shield.Draw(spriteBatch);
             foreach (Asteroid a in asteroids)
             {
                 a.Draw(spriteBatch);
@@ -200,13 +235,24 @@ namespace MonoGameWindowsStarter
             spriteBatch.DrawString(scoreFont, "Score: " + score.ToString(), new Vector2(10,10), Color.White);
             if (lost == true)
             {
-                spriteBatch.DrawString(gameOver, "YOU LOST, press 'escape' to quit", new Vector2(this.GraphicsDevice.Viewport.Width/4, this.GraphicsDevice.Viewport.Height/2), Color.White);
+                spriteBatch.DrawString(gameOver, "YOU LOST, press 'enter' to restart", new Vector2(this.GraphicsDevice.Viewport.Width/4, this.GraphicsDevice.Viewport.Height/2), Color.White);
             }
 
             spriteBatch.End();
 
 
             base.Draw(gameTime);
+        }
+
+        protected void Restart()
+        {
+            numberOfAsteroids = 3;
+            lost = false;
+            ufo = new Ufo(this);
+            shield = new Shield(this);
+            asteroids = new Asteroid[] { new Asteroid(this, random), new Asteroid(this, random), new Asteroid(this, random) };
+            score = 0;
+            LoadContent();
         }
     }
 }
